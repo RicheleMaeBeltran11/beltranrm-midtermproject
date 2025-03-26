@@ -58,11 +58,11 @@ class _MainScreenState extends State<MainScreen> {
   ];
 
   final List<String> _todoList = [
-    'Wake up in the morning',
-    'Drink coffee',
-    'Lunch',
-    'Study Flutter',
-    'Relax and watch movies'
+    'Wake up in the morning (Due: 2025-03-17)',
+    'Drink coffee (Due: 2025-03-17)',
+    'Lunch (Due: 2025-03-17)',
+    'Study Flutter (Due: 2025-03-17)',
+    'Relax and watch movies (Due: 2025-03-17)'
   ];
 
   final List<Map<String, String>> _songs = [
@@ -96,6 +96,7 @@ class _MainScreenState extends State<MainScreen> {
 
   void _showTodoList() {
     TextEditingController taskController = TextEditingController();
+    DateTime? selectedDate;
 
     showDialog(
       context: context,
@@ -109,6 +110,7 @@ class _MainScreenState extends State<MainScreen> {
                 ..._todoList.asMap().entries.map((entry) {
                   int index = entry.key + 1;
                   String task = entry.value;
+
                   return Dismissible(
                     key: Key(task),
                     onDismissed: (direction) {
@@ -134,7 +136,8 @@ class _MainScreenState extends State<MainScreen> {
                               content: TextField(
                                 controller: taskController,
                                 decoration: const InputDecoration(
-                                    hintText: "Enter updated task"),
+                                  hintText: "Enter updated task",
+                                ),
                               ),
                               actions: [
                                 TextButton(
@@ -161,16 +164,45 @@ class _MainScreenState extends State<MainScreen> {
                 }).toList(),
                 const SizedBox(height: 10),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     taskController.clear();
+                    selectedDate = null;
+
                     showDialog(
                       context: context,
                       builder: (context) => AlertDialog(
                         title: const Text('Add New Task'),
-                        content: TextField(
-                          controller: taskController,
-                          decoration:
-                              const InputDecoration(hintText: "Enter new task"),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextField(
+                              controller: taskController,
+                              decoration: const InputDecoration(
+                                  hintText: "Enter new task"),
+                            ),
+                            const SizedBox(height: 10),
+                            TextButton(
+                              onPressed: () async {
+                                DateTime? pickedDate = await showDatePicker(
+                                  context: context,
+                                  initialDate: DateTime.now(),
+                                  firstDate: DateTime.now(),
+                                  lastDate: DateTime(2101),
+                                );
+                                if (pickedDate != null) {
+                                  setStateDialog(
+                                      () => selectedDate = pickedDate);
+                                }
+                              },
+                              child: Text(
+                                selectedDate == null
+                                    ? "Pick Date"
+                                    : "Selected Date: ${selectedDate!.toLocal()}"
+                                        .split(' ')[0],
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ],
                         ),
                         actions: [
                           TextButton(
@@ -179,9 +211,10 @@ class _MainScreenState extends State<MainScreen> {
                           ),
                           TextButton(
                             onPressed: () {
-                              if (taskController.text.isNotEmpty) {
-                                setState(
-                                    () => _todoList.add(taskController.text));
+                              if (taskController.text.isNotEmpty &&
+                                  selectedDate != null) {
+                                setState(() => _todoList.add(
+                                    "${taskController.text} (Due: ${selectedDate!.toLocal().toString().split(' ')[0]})"));
                                 Navigator.pop(context);
                                 setStateDialog(() {});
                               }
@@ -293,144 +326,162 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  void _onSwipe(DragEndDetails details) {
+    setState(() {
+      if (details.primaryVelocity! < 0) {
+        // Swipe left — next color
+        _colorIndex = (_colorIndex + 1) % _colors.length;
+      } else if (details.primaryVelocity! > 0) {
+        // Swipe right — previous color
+        _colorIndex = (_colorIndex - 1 + _colors.length) % _colors.length;
+      }
+      _backgroundColor = _colors[_colorIndex];
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _backgroundColor,
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(height: 20),
-          const Text(
-            'Welcome to Beltran Midterm Project',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const Spacer(),
-          // Only show video controls if video is visible and not playing a song
-          if (_showVideoControls &&
-              _videoController.value.isInitialized &&
-              !isPlaying)
-            Stack(
-              alignment: Alignment.topRight,
-              children: [
-                Container(
-                  width: 450, // Slightly wider
-                  height: 250,
-                  child: VideoPlayer(_videoController),
-                ),
-                Column(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.play_arrow, color: Colors.green),
-                      onPressed: () {
-                        setState(() {
-                          _videoController.play();
-                        });
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.pause, color: Colors.yellow),
-                      onPressed: () {
-                        setState(() {
-                          _videoController.pause();
-                        });
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.stop, color: Colors.red),
-                      onPressed: () {
-                        setState(() {
+      body: GestureDetector(
+        onHorizontalDragEnd: _onSwipe, // Detect swipe gestures
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 20),
+            const Text(
+              'Welcome to Beltran Midterm Project',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const Spacer(),
+
+            // Video controls (unchanged)
+            if (_showVideoControls &&
+                _videoController.value.isInitialized &&
+                !isPlaying)
+              Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  Container(
+                    width: 450,
+                    height: 250,
+                    child: VideoPlayer(_videoController),
+                  ),
+                  Column(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.play_arrow, color: Colors.green),
+                        onPressed: () =>
+                            setState(() => _videoController.play()),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.pause, color: Colors.yellow),
+                        onPressed: () =>
+                            setState(() => _videoController.pause()),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.stop, color: Colors.red),
+                        onPressed: () => setState(() {
                           _videoController.seekTo(Duration.zero);
                           _videoController.pause();
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          const SizedBox(height: 10),
-          if (isPlaying)
-            GestureDetector(
-              onTap: _changeImage,
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 8,
-                        offset: Offset(2, 2)),
-                  ],
-                  image: DecorationImage(
-                    image: AssetImage(_images[_currentImageIndex]),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ),
-          if (isPlaying)
-            Column(
-              children: [
-                Text(
-                  '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                Slider(
-                  min: 0,
-                  max: _duration.inSeconds.toDouble(),
-                  value: _position.inSeconds.toDouble(),
-                  onChanged: (value) async {
-                    final position = Duration(seconds: value.toInt());
-                    await _audioPlayer.seek(position);
-                    await _audioPlayer.resume();
-                  },
-                ),
-              ],
-            ),
-          const SizedBox(height: 10),
-
-          // Show Song Control Buttons only when a song is selected
-          if (isPlaying)
-            Align(
-              alignment: Alignment.center,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Play/Pause button
-                  IconButton(
-                    icon: Icon(
-                      isPlaying ? Icons.pause : Icons.play_arrow,
-                      color: Colors.lightBlueAccent,
-                      size: 36, // Bigger button
-                    ),
-                    onPressed: _toggleAudio,
-                  ),
-                  const SizedBox(width: 20), // Space between buttons
-                  // Stop button
-                  IconButton(
-                    icon: const Icon(Icons.stop,
-                        color: Colors.redAccent, size: 36),
-                    onPressed: _stopAudio,
+                        }),
+                      ),
+                    ],
                   ),
                 ],
               ),
+
+            const SizedBox(height: 10),
+
+            // Song image display
+            if (isPlaying)
+              GestureDetector(
+                onTap: _changeImage,
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 8,
+                          offset: Offset(2, 2)),
+                    ],
+                    image: DecorationImage(
+                      image: AssetImage(_images[_currentImageIndex]),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+
+            // Song progress bar
+            if (isPlaying)
+              Column(
+                children: [
+                  Text(
+                    '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  Slider(
+                    min: 0,
+                    max: _duration.inSeconds.toDouble(),
+                    value: _position.inSeconds.toDouble(),
+                    onChanged: (value) async {
+                      final position = Duration(seconds: value.toInt());
+                      await _audioPlayer.seek(position);
+                      await _audioPlayer.resume();
+                    },
+                  ),
+                ],
+              ),
+
+            const SizedBox(height: 10),
+
+            // Song controls
+            if (isPlaying)
+              Align(
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        isPlaying ? Icons.pause : Icons.play_arrow,
+                        color: Colors.lightBlueAccent,
+                        size: 36,
+                      ),
+                      onPressed: _toggleAudio,
+                    ),
+                    const SizedBox(width: 20),
+                    IconButton(
+                      icon: const Icon(Icons.stop,
+                          color: Colors.redAccent, size: 36),
+                      onPressed: _stopAudio,
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 20),
+
+            // Buttons row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildRectangularButton(
+                    'To Do List', Icons.list, _showTodoList),
+                _buildRectangularButton(
+                    'Change Color', Icons.color_lens, _changeBackgroundColor),
+                _buildRectangularButton(
+                    'Choose Song', Icons.music_note, _chooseSong),
+              ],
             ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildRectangularButton('To Do List', Icons.list, _showTodoList),
-              _buildRectangularButton(
-                  'Change Color', Icons.color_lens, _changeBackgroundColor),
-              _buildRectangularButton(
-                  'Choose Song', Icons.music_note, _chooseSong),
-            ],
-          ),
-          const SizedBox(height: 10),
-        ],
+
+            const SizedBox(height: 10),
+          ],
+        ),
       ),
     );
   }

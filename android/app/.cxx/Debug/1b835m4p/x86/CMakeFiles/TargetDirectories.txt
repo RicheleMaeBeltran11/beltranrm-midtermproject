@@ -1,0 +1,2 @@
+C:/beltranrm/android/app/.cxx/Debug/1b835m4p/x86/CMakeFiles/edit_cache.dir
+C:/beltranrm/android/app/.cxx/Debug/1b835m4p/x86/CMakeFiles/rebuild_cache.dir
